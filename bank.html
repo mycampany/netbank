@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Net Banking</title>
+<style>
+    body {
+        background-color: #121212;
+        color: #eee;
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 50px;
+        margin: 0;
+    }
+    .container {
+        background-color: #1e1e1e;
+        padding: 30px;
+        border-radius: 10px;
+        width: 400px;
+        box-shadow: 0 0 10px #000;
+        margin-bottom: 20px;
+    }
+    h2, h3 {
+        text-align: center;
+        color: #00ffcc;
+    }
+    input {
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 5px;
+        border: none;
+        background-color: #2e2e2e;
+        color: #fff;
+    }
+    button {
+        width: 100%;
+        padding: 10px;
+        background-color: #00ffcc;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        color: #000;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+    button:hover {
+        background-color: #00cc99;
+    }
+    .hidden { display: none; }
+    .balance { text-align: center; margin-top: 10px; font-size: 18px; }
+    .section { margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #555; }
+    th { color: #00ffcc; }
+    #loanStatus, #statementContainer { text-align: center; margin-top: 5px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="container" id="loginContainer">
+    <h2>Net Banking Login</h2>
+    <input type="text" id="loginUsername" placeholder="Username">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p style="text-align:center; margin-top:10px;">Or <a href="#" style="color:#00ffcc;" onclick="showRegister()">Register</a></p>
+</div>
+
+<!-- REGISTER -->
+<div class="container hidden" id="registerContainer">
+    <h2>Register</h2>
+    <input type="text" id="regUsername" placeholder="Username">
+    <input type="password" id="regPassword" placeholder="Password">
+    <button onclick="register()">Register</button>
+    <p style="text-align:center; margin-top:10px;">Already have account? <a href="#" style="color:#00ffcc;" onclick="showLogin()">Login</a></p>
+</div>
+
+<!-- ACCOUNT -->
+<div class="container hidden" id="accountContainer">
+    <h2>Welcome, <span id="userNameDisplay"></span></h2>
+    <div class="balance">Balance: €<span id="userBalance"></span></div>
+
+    <!-- TRANSFER -->
+    <div class="section transfer">
+        <h3>Transfer Money</h3>
+        <input type="text" id="recipient" placeholder="Recipient Username">
+        <input type="number" id="amount" placeholder="Amount to Transfer">
+        <button onclick="transfer()">Transfer</button>
+    </div>
+
+    <!-- LOAN -->
+    <div class="section loan">
+        <h3>Request Loan</h3>
+        <input type="number" id="loanAmount" placeholder="Enter loan amount">
+        <button onclick="requestLoan()">Request Loan</button>
+        <p id="loanStatus" style="color:#ff9933;"></p>
+    </div>
+
+    <!-- STATEMENT -->
+    <div class="section statement">
+        <h3>Account Statement</h3>
+        <button onclick="showStatement()">View Statement</button>
+        <div id="statementContainer"></div>
+    </div>
+
+    <!-- USER LIST -->
+    <div class="section users-list">
+        <h3>All Users</h3>
+        <table>
+            <thead>
+                <tr><th>Username</th><th>Balance (€)</th></tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+        </table>
+    </div>
+
+    <button style="margin-top:10px;" onclick="logout()">Logout</button>
+</div>
+
+<script>
+    // Host user
+    let users = [
+        {username: "Malik", password: "1@1", balance: 400, transactions: []}
+    ];
+
+    let currentUser = null;
+
+    function showRegister() {
+        document.getElementById('loginContainer').classList.add('hidden');
+        document.getElementById('registerContainer').classList.remove('hidden');
+    }
+
+    function showLogin() {
+        document.getElementById('registerContainer').classList.add('hidden');
+        document.getElementById('loginContainer').classList.remove('hidden');
+    }
+
+    function login() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        const user = users.find(u => u.username === username && u.password === password);
+        if(user){
+            currentUser = user;
+            document.getElementById('loginContainer').classList.add('hidden');
+            showAccount();
+        } else {
+            alert("Invalid username or password!");
+        }
+    }
+
+    function register() {
+        const username = document.getElementById('regUsername').value;
+        const password = document.getElementById('regPassword').value;
+        if(username === "" || password === "") {
+            alert("Enter username and password!");
+            return;
+        }
+        if(users.find(u => u.username === username)) {
+            alert("Username already exists!");
+            return;
+        }
+        const newUser = {username: username, password: password, balance: 0, transactions: []};
+        users.push(newUser);
+        alert("Registration successful! Please login.");
+        showLogin();
+    }
+
+    function showAccount() {
+        document.getElementById('accountContainer').classList.remove('hidden');
+        document.getElementById('userNameDisplay').innerText = currentUser.username;
+        document.getElementById('userBalance').innerText = currentUser.balance;
+        updateUserTable();
+    }
+
+    function logout() {
+        currentUser = null;
+        document.getElementById('accountContainer').classList.add('hidden');
+        showLogin();
+    }
+
+    // TRANSFER
+    function transfer() {
+        const recipientName = document.getElementById('recipient').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+
+        if(!recipientName || isNaN(amount) || amount <= 0){
+            alert("Enter valid recipient and amount!");
+            return;
+        }
+
+        const recipient = users.find(u => u.username === recipientName);
+        if(!recipient){
+            alert("Recipient not found!");
+            return;
+        }
+
+        if(currentUser.balance < amount){
+            alert("Insufficient balance!");
+            return;
+        }
+
+        currentUser.balance -= amount;
+        recipient.balance += amount;
+
+        // Add transaction history
+        currentUser.transactions.push({type:"Transfer Sent", amount:amount, to:recipient.username, date:new Date().toLocaleString()});
+        recipient.transactions.push({type:"Transfer Received", amount:amount, from:currentUser.username, date:new Date().toLocaleString()});
+
+        document.getElementById('userBalance').innerText = currentUser.balance;
+        alert(`€${amount} transferred to ${recipient.username} successfully!`);
+        document.getElementById('recipient').value = '';
+        document.getElementById('amount').value = '';
+        updateUserTable();
+    }
+
+    // LOAN
+    function requestLoan() {
+        const amount = parseFloat(document.getElementById('loanAmount').value);
+        if(isNaN(amount) || amount <= 0){
+            alert("Enter a valid amount!");
+            return;
+        }
+
+        document.getElementById('loanStatus').innerText = `Loan of €${amount} requested. Funds will arrive in 4 hours.`;
+
+        // Add transaction after 4 hours
+        setTimeout(() => {
+            currentUser.balance += amount;
+            currentUser.transactions.push({type:"Loan Credited", amount:amount, date:new Date().toLocaleString()});
+            document.getElementById('userBalance').innerText = currentUser.balance;
+            document.getElementById('loanStatus').innerText = `Loan of €${amount} has been credited to your account!`;
+            updateUserTable();
+        }, 4 * 60 * 60 * 1000); // 4 hours in milliseconds
+
+        document.getElementById('loanAmount').value = '';
+    }
+
+    // STATEMENT
+    function showStatement() {
+        const container = document.getElementById('statementContainer');
+        container.innerHTML = "";
+        if(currentUser.transactions.length === 0){
+            container.innerHTML = "<p>No transactions yet.</p>";
+            return;
+        }
+        let html = "<table><tr><th>Type</th><th>Amount (€)</th><th>To/From</th><th>Date</th></tr>";
+        currentUser.transactions.forEach(tr => {
+            html += `<tr>
+                <td>${tr.type}</td>
+                <td>${tr.amount}</td>
+                <td>${tr.to || tr.from || "-"}</td>
+                <td>${tr.date}</td>
+            </tr>`;
+        });
+        html += "</table>";
+        container.innerHTML = html;
+    }
+
+    // USER LIST
+    function updateUserTable() {
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = "";
+        users.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${u.username}</td><td>${u.balance}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+
+</body>
+</html>
